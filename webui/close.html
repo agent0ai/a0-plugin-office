@@ -1,0 +1,9 @@
+<html><head><title>Save changes?</title><script type="module" src="/plugins/office/webui/office-store.js"></script></head><body>
+<div x-data><template x-if="$store.office?.closeTarget"><div>
+  <p>Save changes to <strong x-text="$store.office.closeTarget.draft?'Untitled':$store.office.closeTarget.basename"></strong> before closing?</p>
+  <div class="modal-footer" data-modal-footer>
+    <button class="button" @click="closeModal('/plugins/office/webui/close.html')">Cancel</button>
+    <button class="button" @click="$store.office.closeChoice='discard'; closeModal('/plugins/office/webui/close.html')">Don't Save</button>
+    <button class="button confirm" @click="$store.office.closeChoice='save'; closeModal('/plugins/office/webui/close.html')">Save</button>
+  </div>
+</div></template></div></body></html>

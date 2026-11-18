@@ -21,7 +21,7 @@ Restore Agent Zero's ODF-first Writer, Calc and Impress workflows as a standalon
 - Preserve authentication, same-origin and CSRF checks. VNC passwords stay session-scoped; only loopback/private socket listeners are permitted.
 - Setup is automatic on first use, serialized and retryable, with visible progress. UI startup must stay responsive during installation.
 - Preserve the original document on save/export/rename failure and never overwrite conflicting external edits. Keep user documents and version history on uninstall.
-- Keep the Office toolbar on one row: File owns open/save/export/close, Edit owns rename/history/discard, Office creates Writer/Calc/Impress documents. Menus retain busy/active-document guards and keyboard dismissal.
+- Keep the Office toolbar on one row: File owns new/open/save/export/close, Edit owns rename/history/discard, Office provides Writer/Calc/Impress shortcuts. New UI documents start blank and are recovery drafts under the workdir `.office-drafts/` until first Save; tools continue creating named documents. Save As preserves the original and replaces its open tab. The standalone modal must retain a full-height flex chain; Open uses its own scrollable modal and hides the internal draft directory; closing a draft prompts Save / Don’t Save / Cancel. Menus retain busy/active-document guards and keyboard dismissal.
 - Ordinary tool results do not open UI unless requested. Text/Markdown remain in Agent Zero's Editor.
 
 ## Work Guidance
@@ -32,7 +32,7 @@ Reuse the prior document-format algorithms and current host APIs; isolate option
 
 Run focused unit tests in the framework Python and live Docker checks for cold/warm setup, Writer/Calc/Impress editing, conversion, versions, conflicts, VNC input, resize and lifecycle. Capture screenshots without private data.
 
-`tests/live_backend.py` and `tests/live_ui.py` are explicit disposable-container checks, not default pytest collection. The UI check needs test-only Playwright and a running A0 WebUI at its discovered URL. The backend check owns a separate runtime; stop Office in the WebUI first.
+`tests/live_backend.py`, `tests/live_ui.py` and `tests/live_ui_fixes.py` are explicit disposable-container checks, not default pytest collection. The UI check needs test-only Playwright and a running A0 WebUI at its discovered URL. The UI fixes check temporarily fails the installer, restores it, and tests retry in a fresh sandbox; it also exercises the standalone markup through a temporary unregistered HTML path because current A0 redirects the main entry to Canvas. The backend check owns a separate runtime; stop Office in the WebUI first.
 
 ## Child DOX Index
 

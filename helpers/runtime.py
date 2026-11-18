@@ -49,7 +49,7 @@ class OfficeRuntime:
                     result.update(guest)
             except (OSError, ValueError, SandboxError):
                 pass
-        return {**result, 'documents':[dict(item['document'], dirty=item.get('dirty',False)) for item in list(self.opened.values())]}
+        return {**result, 'documents':[dict(item['document'], dirty=item.get('dirty',False), save_requested=item.get('save_requested',False)) for item in list(self.opened.values())]}
 
     def ensure(self):
         if self.ready and self.manager and self.manager.is_running(NAME):
@@ -91,7 +91,7 @@ class OfficeRuntime:
                     pass
                 if not manager.is_running(NAME):
                     try:
-                        detail = manager.read_file(NAME,'var/lib/a0-office/install.log',limit=6000)
+                        detail = manager.read_file(NAME,'var/lib/a0-office/startup.log',limit=6000)
                     except (OSError,SandboxError):
                         detail = 'Sandbox stopped before readiness.'
                     raise RuntimeError('Office setup failed: ' + detail)
@@ -108,8 +108,8 @@ class OfficeRuntime:
                     raise RuntimeError(response.get('error') or 'Office request failed')
                 self._progress('ready','Office is ready')
                 return response['result']
-            except Exception:
-                self._progress('error','Office request failed. See the error details; retry to resume setup.')
+            except Exception as exc:
+                self._progress('error',str(exc))
                 raise
 
     def request(self, payload):
@@ -177,7 +177,7 @@ class OfficeRuntime:
                     self.opened[updated['file_id']] = record
                 else:
                     updated = document_store.replace_document_bytes(identifier,data,actor='office:native')
-                record.update(document=updated, hash=hashlib.sha256(data).hexdigest(), dirty=result.get('dirty',False))
+                record.update(document=updated, hash=hashlib.sha256(data).hexdigest(), dirty=result.get('dirty',False), save_requested=bool(doc.get('draft') and result.get('save_requested')))
                 if result.get('closed'):
                     self.opened.pop(updated['file_id'],None)
                 selected = updated

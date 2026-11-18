@@ -35,7 +35,9 @@ async function connect() {
   }
 }
 document.addEventListener('keydown',async event=>{
-  if (!viewer.connected || !((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='v')) return;
+  if (!viewer.connected || !(event.ctrlKey||event.metaKey)) return;
+  if(event.key.toLowerCase()==='s'){event.preventDefault();event.stopImmediatePropagation();parent.postMessage({officeAction:event.shiftKey?'save_as':'save'},location.origin);return;}
+  if(event.key.toLowerCase()!=='v')return;
   event.preventDefault();event.stopImmediatePropagation();
   try {viewer.paste(await navigator.clipboard.readText());}
   catch {status.hidden=false;status.textContent='Allow clipboard access to paste into Office';}

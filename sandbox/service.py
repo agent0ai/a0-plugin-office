@@ -35,11 +35,12 @@ processes = []
 
 class DocumentEvents(unohelper.Base, XDocumentEventListener):
     def __init__(self, path):
-        self.path, self.closed = path, False
+        self.path, self.closed, self.saved = path, False, False
 
     def documentEventOccured(self, event):
         if event.EventName in {'OnSaveDone', 'OnSaveAsDone'}:
             self.path = Path(uno.fileUrlToSystemPath(event.Source.getURL())).resolve()
+            self.saved = True
 
     def disposing(self, event):
         self.closed = True
@@ -122,7 +123,9 @@ def saved(identifier, force=True):
     path = listener.path if listener.closed else Path(uno.fileUrlToSystemPath(component.getURL())).resolve()
     if not path.is_relative_to(ROOT) or path.suffix.lstrip('.').lower() not in FORMATS:
         raise ValueError('Save Office files inside the sandbox Documents folder, or use the Office Save As button')
-    return {'dirty':False if listener.closed else component.isModified(), 'closed':listener.closed,
+    save_requested = listener.saved and not force
+    listener.saved = False
+    return {'save_requested':save_requested, 'dirty':False if listener.closed else component.isModified(), 'closed':listener.closed,
             'name':path.name, 'data':base64.b64encode(path.read_bytes()).decode()}
 
 

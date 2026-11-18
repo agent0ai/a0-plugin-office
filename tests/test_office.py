@@ -161,3 +161,79 @@ def test_export_result_identifies_the_exported_file(documents,monkeypatch):
     assert payload['document']['file_id']==exported['file_id']
     assert payload['document']['extension']=='pdf'
     assert result.additional['format']=='pdf'
+
+
+def test_setup_failure_keeps_actual_error():
+    runtime=OfficeRuntime()
+    def fail():
+        raise RuntimeError('apt-get failed: package mirror unavailable')
+    runtime.ensure=fail
+    with pytest.raises(RuntimeError, match='package mirror unavailable'):
+        runtime.call('template')
+    assert runtime.status()['state']=='error'
+    assert 'package mirror unavailable' in runtime.status()['message']
+
+
+def test_first_save_moves_draft_and_keeps_identity(documents, tmp_path, monkeypatch):
+    from usr.plugins.office.api import office_session as api
+    directory=tmp_path/'.office-drafts'/'test'; directory.mkdir(parents=True)
+    doc=documents('.office-drafts/test/Untitled.odt')
+    assert doc['draft']
+    runtime,_=native_runtime(doc,b'edited')
+    runtime.open=lambda updated:{'ok':True,'document':updated}
+    monkeypatch.setattr(api,'get_runtime',lambda:runtime)
+    result=api.dispatch({'action':'save_as','file_id':doc['file_id'],'target_path':str(tmp_path/'Report.odt')})
+    saved=result['document']
+    assert saved['file_id']==doc['file_id'] and not saved['draft']
+    assert Path(saved['path']).read_bytes()==b'edited'
+    assert not Path(doc['path']).exists()
+
+
+def test_first_save_collision_keeps_draft_open(documents, tmp_path, monkeypatch):
+    from usr.plugins.office.api import office_session as api
+    directory=tmp_path/'.office-drafts'/'test'; directory.mkdir(parents=True)
+    doc=documents('.office-drafts/test/Untitled.odt')
+    existing=documents('Report.odt',b'keep')
+    runtime,_=native_runtime(doc,b'edited')
+    monkeypatch.setattr(api,'get_runtime',lambda:runtime)
+    with pytest.raises(FileExistsError):
+        api.dispatch({'action':'save_as','file_id':doc['file_id'],'target_path':existing['path']})
+    assert doc['file_id'] in runtime.opened
+    assert Path(doc['path']).read_bytes()==b'edited'
+    assert Path(existing['path']).read_bytes()==b'keep'
+
+
+def test_new_drafts_have_unique_paths(documents, tmp_path, monkeypatch):
+    from usr.plugins.office.api import office_session as api
+    runtime=OfficeRuntime()
+    runtime.open=lambda doc,**kw:{'ok':True,'document':doc}
+    monkeypatch.setattr(api,'get_runtime',lambda:runtime)
+    monkeypatch.setattr(ds,'document_home',lambda context_id:tmp_path)
+    monkeypatch.setattr(ds,'template_bytes',lambda *a:b'blank')
+    first=api.dispatch({'action':'create','draft':True})['document']
+    second=api.dispatch({'action':'create','draft':True})['document']
+    assert first['draft'] and second['draft']
+    assert first['file_id']!=second['file_id'] and first['path']!=second['path']
+    assert first['basename']==second['basename']=='Untitled.odt'
+    assert '.office-drafts' not in [entry['name'] for entry in api.dispatch({'action':'browse','path':str(tmp_path)})['entries']]
+
+
+def test_native_draft_save_requests_filename(documents, tmp_path):
+    directory=tmp_path/'.office-drafts'/'test'; directory.mkdir(parents=True)
+    doc=documents('.office-drafts/test/Untitled.odt')
+    runtime,_=native_runtime(doc,b'edited')
+    call=runtime.call
+    runtime.call=lambda *args,**kw:{**call(*args,**kw),'save_requested':True}
+    result=runtime.sync(save=False)
+    assert result['documents'][0]['save_requested']
+
+
+def test_blank_odf_templates(monkeypatch):
+    import io, zipfile
+    from xml.etree import ElementTree
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]/'sandbox'))
+    import documents
+    for ext in ('odt','ods','odp'):
+        with zipfile.ZipFile(io.BytesIO(documents.template_bytes('document',ext,'',''))) as archive:
+            root=ElementTree.fromstring(archive.read('content.xml'))
+            assert not ''.join(root.itertext()).strip()

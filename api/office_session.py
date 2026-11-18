@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from pathlib import Path
 from helpers.api import ApiHandler, Request
 from helpers import plugins
@@ -34,6 +35,8 @@ def dispatch(input):
         path = document_store.normalize_path(input.get('path') or document_store.default_open_path(context_id),context_id=context_id)
         entries=[]
         for child in sorted(path.iterdir() if path.exists() else [],key=lambda item:(not item.is_dir(),item.name.lower())):
+            if child.name == '.office-drafts':
+                continue
             if child.is_dir() or child.suffix.lower().lstrip('.') in FORMATS:
                 entries.append({'name':child.name,'path':str(child),'directory':child.is_dir()})
         try:
@@ -48,15 +51,19 @@ def dispatch(input):
             fmt = str(input.get('format') or 'odt')
             if fmt not in FORMATS:
                 raise ValueError('Unsupported Office format')
-            doc = document_store.create_document(kind=input.get('kind','document'),title=input.get('title') or 'Untitled',
-                fmt=fmt, content=input.get('content',''),path=input.get('path',''),context_id=context_id)
+            path = input.get('path','')
+            if input.get('draft'):
+                path = str(document_store.document_home(context_id) / '.office-drafts' / uuid.uuid4().hex / ('Untitled.' + fmt))
+            doc = document_store.create_document(kind=input.get('kind','document'),title='' if input.get('draft') else input.get('title') or 'Untitled',
+                fmt=fmt, content=input.get('content',''),path=path,context_id=context_id)
         else:
             doc = document_store.get_document(input['file_id']) if input.get('file_id') else document_store.register_document(input.get('path',''), context_id=context_id)
         if doc['extension'] not in FORMATS:
             raise ValueError('Text documents use the Editor surface')
         identifier = doc['file_id']
         if action in {'create','open'}:
-            return runtime.open(doc,mode=input.get('mode','edit'))
+            result = runtime.open(doc,mode=input.get('mode','edit'))
+            return {**result, 'documents':runtime.status()['documents']}
         if action == 'close':
             runtime.close(identifier,save=input.get('save',True))
             return {'ok':True, **runtime.status()}
@@ -82,8 +89,16 @@ def dispatch(input):
                 raise ValueError('Save As keeps the format; use Export to convert')
             if target.exists():
                 raise FileExistsError(str(target))
-            document_store._write_atomic(target,Path(doc['path']).read_bytes(),source=Path(doc['path']))
-            return runtime.open(document_store.register_document(target,context_id=context_id))
+            if doc.get('draft'):
+                runtime.close(identifier)
+                updated = document_store.rename_document(identifier,target,context_id=context_id)
+            else:
+                document_store._write_atomic(target,Path(doc['path']).read_bytes(),source=Path(doc['path']))
+                updated = document_store.register_document(target,context_id=context_id)
+            result = runtime.open(updated)
+            if not doc.get('draft'):
+                runtime.close(identifier)
+            return {**result, 'documents':runtime.status()['documents']}
         if action == 'export':
             return libreoffice.convert_document(doc['path'],input.get('target_format','pdf'))
         if action == 'restore':

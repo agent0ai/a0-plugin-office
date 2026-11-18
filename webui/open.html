@@ -1,0 +1,8 @@
+<html class="office-open-modal"><head><title>Open</title><script type="module" src="/plugins/office/webui/office-store.js"></script><link rel="stylesheet" href="/plugins/office/webui/office.css"></head><body><div x-data><template x-if="$store.office">
+  <div class="office-picker">
+    <form @submit.prevent="$store.office.browse($store.office.browsePath)"><input aria-label="Office folder" x-model="$store.office.browsePath"><button class="button">Go</button><button type="button" class="button" @click="closeModal('/plugins/office/webui/open.html')">Cancel</button></form>
+    <button class="button" @click="$store.office.browse($store.office.parentPath)"><x-icon name="arrow_upward"></x-icon> Parent folder</button>
+    <p x-show="!$store.office.entries.length">No Office documents in this folder.</p>
+    <template x-for="entry in $store.office.entries" :key="entry.path"><button class="office-file" @click="entry.directory?$store.office.browse(entry.path):$store.office.open({path:entry.path})"><x-icon :name="entry.directory?'folder':'description'"></x-icon><span x-text="entry.name"></span></button></template>
+  </div>
+</template></div></body></html>

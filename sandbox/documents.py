@@ -32,6 +32,13 @@ def normalize_extension(value):
 
 def template_bytes(kind: str, ext: str, title: str, content: str) -> bytes:
     ext = normalize_extension(ext or "md")
+    if not title and not content and ext in ODF_MIMETYPES:
+        body = {
+            'odt': '<office:text><text:p/></office:text>',
+            'ods': '<office:spreadsheet><table:table table:name="Sheet1"><table:table-row><table:table-cell/></table:table-row></table:table></office:spreadsheet>',
+            'odp': '<office:presentation><draw:page draw:name="Slide 1" draw:master-page-name="Default"/></office:presentation>',
+        }[ext]
+        return _odf_package(ext, f'<office:document-content {_odf_content_namespaces()} office:version="{ODF_VERSION}"><office:body>{body}</office:body></office:document-content>')
     if ext == "md":
         return _markdown(title, content).encode("utf-8")
     if ext == "txt":

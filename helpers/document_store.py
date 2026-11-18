@@ -273,6 +273,7 @@ def get_document(file_id: str, conn: sqlite3.Connection | None = None) -> dict[s
             raise FileNotFoundError(file_id)
         result = dict(row)
         normalize_path(result['path'])
+        result['draft'] = '.office-drafts' in Path(result['path']).parts
         return result
 
     if conn is not None:

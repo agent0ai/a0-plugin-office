@@ -1,7 +1,7 @@
 name: office
 title: Office
 description: Create, edit and view Writer, Calc and Impress documents in an on-demand LibreOffice sandbox.
-version: 0.1.0
+version: 0.1.1
 a0_version: ">=3.0"
 settings_sections: []
 per_project_config: false
