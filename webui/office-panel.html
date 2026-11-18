@@ -1,0 +1,46 @@
+<html><head><title>Office</title><script type="module" src="/plugins/office/webui/office-store.js"></script><link rel="stylesheet" href="/plugins/office/webui/office.css"></head><body>
+<div x-data><template x-if="$store.office"><div class="office-panel surface-workspace" x-create="$store.office.mount($el,xAttrs($el)||{})" x-destroy="$store.office.detach($el)">
+  <div class="surface-toolbar office-toolbar" x-data="{menu:''}" x-id="['office-file','office-edit','office-apps']" @click.outside="menu=''" @keydown.escape="if(menu){$event.stopPropagation(); const trigger=$refs[menu]; menu=''; trigger?.focus()}" @blur.window="menu=''" @focusout="if(!$el.contains($event.relatedTarget)) menu=''">
+    <div class="office-menu">
+      <button type="button" class="button office-menu-trigger" x-ref="file" :aria-expanded="menu==='file'" :aria-controls="$id('office-file')" @click="menu=menu==='file'?'':'file'">File <x-icon name="expand_more" aria-hidden="true"></x-icon></button>
+      <div class="office-menu-items" :id="$id('office-file')" role="group" aria-label="File actions" x-show="menu==='file'" style="display:none">
+        <button type="button" @click="menu=''; $store.office.browse()" :disabled="$store.office.busy">Open</button>
+        <button type="button" @click="menu=''; $store.office.command('save')" :disabled="!$store.office.active||$store.office.busy">Save</button>
+        <button type="button" @click="menu=''; $store.office.saveAs()" :disabled="!$store.office.active||$store.office.busy">Save As</button>
+        <hr>
+        <template x-for="format in $store.office.exportFormats" :key="format"><button type="button" @click="menu=''; $store.office.command('export',{target_format:format})" :disabled="!$store.office.active||$store.office.busy" x-text="'Export as '+format.toUpperCase()"></button></template>
+        <hr>
+        <button type="button" @click="menu=''; $store.office.close($store.office.active)" :disabled="!$store.office.active||$store.office.busy">Close document</button>
+      </div>
+    </div>
+    <div class="office-menu">
+      <button type="button" class="button office-menu-trigger" x-ref="edit" :aria-expanded="menu==='edit'" :aria-controls="$id('office-edit')" @click="menu=menu==='edit'?'':'edit'">Edit <x-icon name="expand_more" aria-hidden="true"></x-icon></button>
+      <div class="office-menu-items" :id="$id('office-edit')" role="group" aria-label="Edit actions" x-show="menu==='edit'" style="display:none">
+        <button type="button" @click="menu=''; $store.office.rename()" :disabled="!$store.office.active||$store.office.busy">Rename…</button>
+        <button type="button" @click="menu=''; $store.office.history()" :disabled="!$store.office.active||$store.office.busy">Version history</button>
+        <hr>
+        <button type="button" @click="menu=''; $store.office.discard()" :disabled="!$store.office.active||$store.office.busy">Discard &amp; close…</button>
+      </div>
+    </div>
+    <div class="office-menu">
+      <button type="button" class="button office-menu-trigger" x-ref="office" :aria-expanded="menu==='office'" :aria-controls="$id('office-apps')" @click="menu=menu==='office'?'':'office'">Office <x-icon name="expand_more" aria-hidden="true"></x-icon></button>
+      <div class="office-menu-items" :id="$id('office-apps')" role="group" aria-label="New Office document" x-show="menu==='office'" style="display:none">
+        <button type="button" @click="menu=''; $store.office.create('odt')" :disabled="$store.office.busy"><x-icon name="description" aria-hidden="true"></x-icon> Writer document</button>
+        <button type="button" @click="menu=''; $store.office.create('ods')" :disabled="$store.office.busy"><x-icon name="table_chart" aria-hidden="true"></x-icon> Calc spreadsheet</button>
+        <button type="button" @click="menu=''; $store.office.create('odp')" :disabled="$store.office.busy"><x-icon name="slideshow" aria-hidden="true"></x-icon> Impress presentation</button>
+      </div>
+    </div>
+    <button type="button" class="button" @click="menu=''; $store.office.command('save')" :disabled="!$store.office.active||$store.office.busy"><x-icon name="save" aria-hidden="true"></x-icon> Save</button>
+  </div>
+  <div class="office-title"><label>Document name <input aria-label="Document name" x-model="$store.office.title" placeholder="Untitled"></label></div>
+  <div class="surface-tab-bar office-tabs" role="tablist" aria-label="Office documents"><template x-for="doc in $store.office.documents" :key="doc.file_id"><div class="office-tab" :class="{'active':doc.file_id===$store.office.active}"><button role="tab" :aria-selected="doc.file_id===$store.office.active" @click="$store.office.open({file_id:doc.file_id})" x-text="doc.basename+(doc.dirty?' •':'')"></button><button :aria-label="'Close '+doc.basename" @click="$store.office.close(doc.file_id)"><x-icon name="close"></x-icon></button></div></template></div>
+  <div class="office-progress" role="status" x-show="$store.office.busy || $store.office.startup.state==='installing' || $store.office.startup.state==='starting'"><x-icon name="progress_activity" class="spinning"></x-icon><span x-text="$store.office.startup.message||'Working…'"></span></div>
+  <div class="office-picker" x-show="$store.office.picker">
+    <form @submit.prevent="$store.office.browse($store.office.browsePath)"><input aria-label="Office folder" x-model="$store.office.browsePath"><button class="button">Go</button><button type="button" class="button" @click="$store.office.picker=false">Cancel</button></form>
+    <button class="button" @click="$store.office.browse($store.office.parentPath)">Parent folder</button>
+    <template x-for="entry in $store.office.entries" :key="entry.path"><button class="office-file" @click="entry.directory?$store.office.browse(entry.path):$store.office.open({path:entry.path})"><x-icon :name="entry.directory?'folder':'description'"></x-icon><span x-text="entry.name"></span></button></template>
+  </div>
+  <div class="office-history" x-show="$store.office.showHistory"><button class="button" @click="$store.office.showHistory=false">Close history</button><template x-for="version in $store.office.versions" :key="version.id"><button class="office-file" @click="$store.office.restore(version.id)" x-text="'Restore '+version.version+' ('+version.size+' bytes)'"></button></template><span x-show="!$store.office.versions.length">No saved versions yet.</span></div>
+  <div class="office-host" data-office-host></div>
+  <div class="office-empty" x-show="!$store.office.viewerUrl&&!$store.office.busy&&!$store.office.picker">Create a Writer document, Calc spreadsheet or Impress presentation, or open an existing Office file.<br>First use installs LibreOffice in its own sandbox and can take several minutes.</div>
+</div></template></div></body></html>

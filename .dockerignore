@@ -1,0 +1,12 @@
+.git
+.test-artifacts
+.pytest_cache
+**/__pycache__
+**/*.py[cod]
+.env
+.env.*
+.venv
+node_modules
+.toggle-*
+config.json
+.DS_Store

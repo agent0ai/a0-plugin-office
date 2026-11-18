@@ -1,0 +1,12 @@
+.test-artifacts/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+.env.*
+!.env.example
+.venv/
+node_modules/
+.toggle-*
+config.json
+.DS_Store
